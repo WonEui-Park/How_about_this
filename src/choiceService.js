@@ -1,29 +1,44 @@
-import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, getDoc, serverTimestamp, deleteDoc } from "firebase/firestore";
 import { db } from "./firebase";
 
+export async function selectRestaurant({
+  userProfile,
+  restaurant,
+  selectedDate,
+  targetUser = null,
+  overriddenBy = null,
+  isPublicRecommendation = false,
+  recommendationReason = ""
 
+}) {
+  if (!selectedDate) {
+    throw new Error("선택 날짜가 없습니다.");
+  }
 
-export async function selectRestaurant({ userProfile, restaurant, selectedDate }) {
- 
+  const choiceUser = targetUser || userProfile;
 
-  // 하루에 한 사람당 하나의 문서만 생기도록 문서 ID를 고정
-  const choiceId = `${selectedDate}_${userProfile.uid}`;
+  const choiceId = `${selectedDate}_${choiceUser.uid}`;
   const choiceRef = doc(db, "dailyChoices", choiceId);
 
   await setDoc(choiceRef, {
     date: selectedDate,
 
-    userId: userProfile.uid,
-    userName: userProfile.name,
-    affiliation: userProfile.affiliation || "",
-    teamName: userProfile.teamName || "",
-    role: userProfile.role || "member",
+    userId: choiceUser.uid,
+    userName: choiceUser.name,
+    affiliation: choiceUser.affiliation || "",
+    teamName: choiceUser.teamName || "",
+    role: choiceUser.role || "member",
 
     restaurantId: restaurant.id,
     restaurantName: restaurant.name,
 
     selectedBy: userProfile.uid,
-    overriddenBy: null,
+    overriddenBy: overriddenBy,
+
+    isPublicRecommendation,
+    recommendationReason: isPublicRecommendation
+      ? recommendationReason.trim()
+      : "",
 
     updatedAt: serverTimestamp()
   });
@@ -39,8 +54,7 @@ export async function getMyChoiceByDate(uid, selectedDate) {
   if (!selectedDate) {
     return null;
   }
-  
-  
+
   const choiceId = `${selectedDate}_${uid}`;
   const choiceRef = doc(db, "dailyChoices", choiceId);
 
@@ -54,4 +68,16 @@ export async function getMyChoiceByDate(uid, selectedDate) {
     id: choiceSnap.id,
     ...choiceSnap.data()
   };
+}
+
+
+export async function cancelUserChoice(uid, selectedDate) {
+  if (!uid || !selectedDate) {
+    throw new Error("사용자 정보 또는 날짜가 없습니다.");
+  }
+
+  const choiceId = `${selectedDate}_${uid}`;
+  const choiceRef = doc(db, "dailyChoices", choiceId);
+
+  await deleteDoc(choiceRef);
 }

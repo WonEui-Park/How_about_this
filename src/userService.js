@@ -1,4 +1,4 @@
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "./firebase";
 
 export async function getUserProfile(uid) {
@@ -13,4 +13,14 @@ export async function getUserProfile(uid) {
     uid,
     ...userSnap.data()
   };
+}
+
+export async function updateUserProfile(uid, data) {
+  const userRef = doc(db, "users", uid);
+
+  await updateDoc(userRef, {
+    affiliation: data.affiliation,
+    teamName: data.teamName,
+    role: data.role
+  });
 }

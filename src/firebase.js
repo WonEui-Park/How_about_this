@@ -3,6 +3,7 @@ import  { initializeApp }   from "firebase/app";
 import  { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { exp } from "firebase/firestore/pipelines";
+import { getFunctions } from "firebase/functions";
 
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
@@ -17,5 +18,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
+
+export const functions = getFunctions(app, "asia-northeast3");
 export const auth = getAuth(app);
 export const db = getFirestore(app);

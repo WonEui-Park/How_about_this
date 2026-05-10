@@ -1,16 +1,20 @@
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "./firebase";
 
-export async function getChoiceStatusByDate(selectedDate) {
-  if (!selectedDate) {
-    return [];
+export async function getChoiceStatusByDateAndAffiliation(selectedDate, affiliation) {
+  if (!selectedDate || !affiliation) {
+    return {
+      ranking: [],
+      recommendations: []
+    };
   }
 
   const choicesRef = collection(db, "dailyChoices");
 
   const q = query(
     choicesRef,
-    where("date", "==", selectedDate)
+    where("date", "==", selectedDate),
+    where("affiliation", "==", affiliation)
   );
 
   const querySnapshot = await getDocs(q);
@@ -46,5 +50,19 @@ export async function getChoiceStatusByDate(selectedDate) {
     });
   });
 
-  return Object.values(statusMap).sort((a, b) => b.count - a.count);
+  const recommendations = choices
+    .filter((choice) => choice.isPublicRecommendation)
+    .map((choice) => ({
+      id: choice.id,
+      userName: choice.userName,
+      restaurantName: choice.restaurantName,
+      recommendationReason: choice.recommendationReason || "",
+      teamName: choice.teamName || "",
+      updatedAt: choice.updatedAt || null
+    }));
+
+  return {
+    ranking: Object.values(statusMap).sort((a, b) => b.count - a.count),
+    recommendations
+  };
 }

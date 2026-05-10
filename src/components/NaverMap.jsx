@@ -65,6 +65,8 @@ function NaverMap({ restaurants, choiceRanking = [], onMapCenterChange }) {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
+  const infoWindowRef = useRef(null);
+  const infoWindowTimerRef = useRef(null);
 
 
   const [mapReady, setMapReady] = useState(false);
@@ -80,11 +82,6 @@ function NaverMap({ restaurants, choiceRanking = [], onMapCenterChange }) {
   const center = mapRef.current.getCenter();
 
 
-  console.log("지도 생성 직후 중심:", {
-  lat: center.lat(),
-  lng: center.lng()
-  });
-
 if (onMapCenterChange) {
   onMapCenterChange({
     lat: center.lat(),
@@ -92,6 +89,18 @@ if (onMapCenterChange) {
   });
 }
 }
+
+  function closeInfoWindow() {
+    if (infoWindowRef.current) {
+      infoWindowRef.current.close();
+      infoWindowRef.current = null;
+    }
+
+    if (infoWindowTimerRef.current) {
+      clearTimeout(infoWindowTimerRef.current);
+      infoWindowTimerRef.current = null;
+    }
+  }
 
   useEffect(() => {
     const clientId = import.meta.env.VITE_NAVER_MAP_CLIENT_ID;
@@ -122,15 +131,16 @@ if (onMapCenterChange) {
           mapOptions
         );
 
+        naver.maps.Event.addListener(mapRef.current, "click", () => {
+          closeInfoWindow();
+        });
+
         sendMapCenterToApp();
 
         naver.maps.Event.addListener(mapRef.current, "idle", () => {
         const center = mapRef.current.getCenter();
 
-        console.log("지도 이동 후 중심:", {
-            lat: center.lat(),
-            lng: center.lng()
-        });
+       
 
         if (onMapCenterChange) {
             onMapCenterChange({
@@ -166,6 +176,8 @@ if (onMapCenterChange) {
 
     const naver = window.naver;
     const map = mapRef.current;
+
+    closeInfoWindow();
 
     markersRef.current.forEach((marker) => {
       marker.setMap(null);
@@ -242,7 +254,14 @@ if (onMapCenterChange) {
       });
 
       naver.maps.Event.addListener(marker, "click", () => {
+        closeInfoWindow();
+
         infoWindow.open(map, marker);
+        infoWindowRef.current = infoWindow;
+
+        infoWindowTimerRef.current = setTimeout(() => {
+          closeInfoWindow();
+        }, 5000);
       });
 
       markersRef.current.push(marker);

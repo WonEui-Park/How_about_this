@@ -7,7 +7,10 @@ import { getUserProfile, updateUserProfile  } from "./userService";
 import { selectRestaurant, getMyChoiceByDate, cancelUserChoice } from "./choiceService";
 import { getRestaurants, addRestaurant, updateRestaurant } from "./restaurantService";
 import { getTodayString } from "./utils/dateUtils";
-import { getChoiceStatusByDateAndAffiliation } from "./statusService";
+import { 
+  getChoiceStatusByDateAndAffiliation,
+  getChoiceStatusByDate 
+} from "./statusService";
 import { getOrganizations } from "./organizationService";
 import { getTeamMembers } from "./teamService";
 import { searchNaverPlaces } from "./placeService";
@@ -32,6 +35,10 @@ function App() {
     ranking: [],
     recommendations: []
   });
+  const [publicMapStatus, setPublicMapStatus] = useState({
+  ranking: [],
+  recommendations: []
+});
 
   const [editAffiliation, setEditAffiliation] = useState("");
   const [editTeamName, setEditTeamName] = useState("");
@@ -59,7 +66,53 @@ function App() {
   const [placeSearchLoading, setPlaceSearchLoading] = useState(false);
 
   const [mapCenter, setMapCenter] = useState(null);
+  const [screen, setScreen] = useState("login");
+  const [recommendationIndex, setRecommendationIndex] = useState(0);
+  const [selectedRanking, setSelectedRanking] = useState(null);
 
+  function goToMain() {
+    setScreen("main");
+    setPendingRestaurant(null);
+    setSelectedPlace(null);
+    setSelectedRanking(null);
+    setPlaceSearchResults([]);
+    setRestaurantSearchKeyword("");
+    setShowOnBoard(false);
+    setRecommendationReason("");
+  }
+
+  function goToSelectList() {
+    setScreen("selectList");
+    setPendingRestaurant(null);
+    setShowOnBoard(false);
+    setRecommendationReason("");
+  }
+
+  function goToRegister() {
+    setScreen("register");
+    setSelectedPlace(null);
+    setPlaceSearchResults([]);
+    setNewRestaurantName("");
+    setNewRestaurantMenu("");
+    setMessage("");
+  }
+
+  function goToProfile() {
+    setScreen("profile");
+    setMessage("");
+  }
+
+  function goToRankingDetail(rankingItem) {
+  setSelectedRanking(rankingItem);
+  setScreen("rankingDetail");
+  setMessage("");
+}
+
+function goBackFromRankingDetail() {
+  setSelectedRanking(null);
+  setScreen("main");
+}
+  
   async function handleUpdateProfile() {
   try {
     setMessage("");
@@ -74,6 +127,7 @@ function App() {
     setProfile(updatedProfile);
 
     setMessage("내 정보가 저장되었습니다.");
+    setScreen("main");
   } catch (error) {
     console.error(error);
     setMessage("내 정보 저장 실패: " + error.message);
@@ -85,6 +139,7 @@ function handleSelectRestaurant(restaurant) {
   setShowOnBoard(false);
   setRecommendationReason("");
   setMessage("");
+  setScreen("selectDetail");
 }
 
 
@@ -138,6 +193,7 @@ async function handleConfirmSelectRestaurant() {
       setPendingRestaurant(null);
       setShowOnBoard(false);
       setRecommendationReason("");
+      setScreen("main");
 
       return;
     }
@@ -165,6 +221,8 @@ async function handleConfirmSelectRestaurant() {
     setPendingRestaurant(null);
     setShowOnBoard(false);
     setRecommendationReason("");
+    setScreen("main");
+
   } catch (error) {
     console.error(error);
     setMessage("식당 선택 실패: " + error.message);
@@ -219,6 +277,7 @@ async function handleAddRestaurant() {
     setSelectedPlace(null);
 
     setMessage("식당이 추가되었습니다.");
+    setScreen("main");
   } catch (error) {
     console.error(error);
     setMessage("식당 추가 실패: " + error.message);
@@ -279,8 +338,7 @@ async function handleCancelChoice() {
 
 async function handleSearchPlace() {
   try {
-    console.log("장소 검색 버튼 클릭됨");
-    console.log("현재 mapCenter:", mapCenter);
+  
 
     setMessage("");
     setPlaceSearchLoading(true);
@@ -314,6 +372,54 @@ async function handleSearchPlace() {
   }
 }
 
+useEffect(() => {
+  async function loadPublicMapData() {
+    try {
+      const restaurantList = await getRestaurants();
+      setRestaurants(restaurantList);
+
+      const publicStatus = await getChoiceStatusByDate(selectedDate);
+      setPublicMapStatus(publicStatus);
+
+      
+    } catch (error) {
+      console.error("공개 지도 데이터 불러오기 실패:", error);
+    }
+  }
+
+  loadPublicMapData();
+}, [selectedDate]);
+
+  useEffect(() => {
+    const recommendations = choiceStatus.recommendations || [];
+
+    setRecommendationIndex(0);
+
+    if (recommendations.length <= 1) {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setRecommendationIndex((prev) => {
+        return (prev + 1) % recommendations.length;
+      });
+    }, 5000);
+
+    return () => clearInterval(timer);
+  }, [choiceStatus.recommendations]);
+
+  useEffect(() => {
+  async function loadOrganizations() {
+    try {
+      const organizationList = await getOrganizations();
+      setOrganizations(organizationList);
+    } catch (error) {
+      console.error("소속 목록 불러오기 실패:", error);
+    }
+  }
+
+  loadOrganizations();
+}, []);
 
 
   useEffect(() => {
@@ -346,21 +452,22 @@ async function handleSearchPlace() {
 
           );
           setChoiceStatus(status);
+          setScreen("main");
 
         } else {
           setCurrentUser(null);
           setProfile(null);
-          setRestaurants([]);
           setMyChoice(null);
           setChoiceStatus({
             ranking: [],
             recommendations: []
           });
-          setOrganizations([]);
+          
 
           setEditAffiliation("");
           setEditTeamName("");
           setEditRole("member");
+          setScreen("login");
 
 
         }
@@ -379,9 +486,17 @@ async function handleSearchPlace() {
     try {
       setMessage("");
 
-      await signUpUser({ pbnum, name, password });
+      await signUpUser({
+        pbnum,
+        name,
+        password,
+        affiliation: editAffiliation
+      });
 
-      setMessage("회원가입 성공");
+
+      setMessage("회원가입 성공. 로그인해주세요.");
+      setScreen("login");
+      setPassword("");
     } catch (error) {
       console.error(error);
       setMessage("회원가입 실패: " + error.message);
@@ -392,9 +507,10 @@ async function handleSearchPlace() {
     try {
       setMessage("");
 
-      await loginUser({ pbnum, name, password });
+      await loginUser({ name, password });
 
       setMessage("로그인 성공");
+      setScreen("main");
     } catch (error) {
       console.error(error);
       setMessage("로그인 실패: " + error.message);
@@ -405,6 +521,7 @@ async function handleSearchPlace() {
     try {
       await signOut(auth);
       setMessage("로그아웃 완료");
+      setScreen("login");
     } catch (error) {
       console.error(error);
       setMessage("로그아웃 실패: " + error.message);
@@ -480,446 +597,570 @@ const filteredRestaurants = restaurants
     return (a.name || "").localeCompare(b.name || "", "ko");
   });
 
+const publicRecommendations = choiceStatus.recommendations || [];
 
+const activeRecommendation =
+  publicRecommendations.length > 0
+    ? publicRecommendations[recommendationIndex % publicRecommendations.length]
+    : null;
 
-  return (
-    <div style={{ padding: "40px", textAlign: "center" }}>
-      <h1>이건 어때</h1>
-
-      {currentUser && profile ? (
-        <div>
-          <h2>로그인된 화면</h2>
-
-          <p>이름: {profile.name}</p>
-          <p>PB 번호: {profile.pbnum}</p>
-          <p>소속: {profile.affiliation || "미설정"}</p>
-          <p>팀명: {profile.teamName || "미설정"}</p>
-          <p>계급: {profile.role === "leader" ? "조장" : "조원"}</p>
-
-        <hr />
-
-<h2>내 정보 수정</h2>
-
-<div>
-  <input
-    list="organization-list"
-    placeholder="소속"
-    value={editAffiliation}
-    onChange={(e) => {
-      setEditAffiliation(e.target.value);
-      setEditTeamName("");
-    }}
-  />
-
-  <datalist id="organization-list">
-  {editAffiliation.trim() !== "" &&
-    organizations
-      .filter((org) =>
-        org.name.toLowerCase().includes(editAffiliation.toLowerCase())
-      )
-      .map((org) => (
-        <option key={org.id} value={org.name} />
-      ))}
-</datalist>
-</div>
-
-<div>
-  <select
-    value={editTeamName}
-    onChange={(e) => setEditTeamName(e.target.value)}
-    disabled={!selectedOrganization}
-  >
-    <option value="">팀 선택</option>
-
-    {teamOptions.map((team) => (
-      <option key={team} value={team}>
-        {team}
-      </option>
-    ))}
-  </select>
-</div>
-
-<div>
-  <select
-    value={editRole}
-    onChange={(e) => setEditRole(e.target.value)}
-  >
-    <option value="member">조원</option>
-    <option value="leader">조장</option>
-  </select>
-</div>
-
-<button onClick={handleUpdateProfile}>내 정보 저장</button>
-
-<hr />
-
-
-          <h2>{selectedDate}에 선택한 식당</h2>
-
-{myChoice ? (
-  <div>
-    <p>
-      <strong>{myChoice.restaurantName}</strong> 선택됨
-    </p>
-
-    <button onClick={handleCancelChoice}>
-      선택 취소
-    </button>
-  </div>
-) : (
-  <p>아직 선택한 식당이 없습니다.</p>
-)}
-
-<input
-  type="date"
-  value={selectedDate}
-  onChange={async (e) => {
-    const newDate = e.target.value;
-    setSelectedDate(newDate);
-
-    if (profile) {
-      const choice = await getMyChoiceByDate(profile.uid, newDate);
-      setMyChoice(choice);
-
-      const status = await getChoiceStatusByDateAndAffiliation(
-       newDate,
-       profile.affiliation
-      );
-      setChoiceStatus(status);
-    }
-  }}
-/>
-
-<h2>{selectedDate} 현황판</h2>
-
-<h3>공개 추천</h3>
-
-{choiceStatus.recommendations.length === 0 ? (
-  <p>아직 공개 추천이 없습니다.</p>
-) : (
-  <ul>
-    {choiceStatus.recommendations.map((item) => (
-      <li key={item.id} style={{ marginBottom: "16px" }}>
-        <strong>{item.userName}</strong>님이{" "}
-        <strong>{item.restaurantName}</strong>을 선택했습니다.
-        {item.recommendationReason && (
-          <>
-            <br />
-            추천 이유: {item.recommendationReason}
-          </>
-        )}
-      </li>
-    ))}
-  </ul>
-)}
-
-<h3>선택 인원 순위</h3>
-
-{choiceStatus.ranking.length === 0 ? (
-  <p>아직 선택한 사람이 없습니다.</p>
-) : (
-  <ul>
-    {choiceStatus.ranking.map((status) => (
-      <li key={status.restaurantId} style={{ marginBottom: "16px" }}>
-        <strong>{status.restaurantName}</strong>: {status.count}명
-        <br />
-        선택자:{" "}
-        {status.users.map((user) => user.userName).join(", ")}
-      </li>
-    ))}
-  </ul>
-)}
-
-{profile.role === "leader" && (
-  <div style={{ marginTop: "20px", marginBottom: "20px" }}>
-    <label>
-      <input
-        type="checkbox"
-        checked={selectWithTeam}
-        onChange={(e) => setSelectWithTeam(e.target.checked)}
-      />
-      {" "}팀원도 같이 적용
-    </label>
-  </div>
-)}
-
-<hr />
-
-<h2>식당 제안</h2>
-
-<div>
-  <input
-    placeholder="가게 이름 검색"
-    value={newRestaurantName}
-    onChange={(e) => {
-      setNewRestaurantName(e.target.value);
-      setSelectedPlace(null);
-      setPlaceSearchResults([]);
-    }}
-  />
-
-  <button onClick={handleSearchPlace} disabled={placeSearchLoading}>
-    {placeSearchLoading ? "검색 중..." : "장소 검색"}
-  </button>
-</div>
-
-{placeSearchResults.length > 0 && (
-  <ul>
-    {placeSearchResults.map((place, index) => (
-      <li key={`${place.title}-${index}`} style={{ marginBottom: "12px" }}>
-        <strong>{place.title}</strong>
-        <br />
-        {place.category && <>분류: {place.category}<br /></>}
-
-        <button
-          onClick={() => {
-            setSelectedPlace(place);
-            setNewRestaurantName(place.title);
-          }}
-        >
-          이 장소 선택
-        </button>
-      </li>
-    ))}
-  </ul>
-)}
-
-{selectedPlace && (
-  <p>
-    선택된 장소: <strong>{selectedPlace.title}</strong>
-    <br />
-    {selectedPlace.roadAddress || selectedPlace.address}
-  </p>
-)}
-
-<div>
-  <input
-    placeholder="추천 메뉴"
-    value={newRestaurantMenu}
-    onChange={(e) => setNewRestaurantMenu(e.target.value)}
-  />
-</div>
-
-<button onClick={handleAddRestaurant}>
-  식당 추가
-</button>
-
-{/* <h2>현황판 공개 설정</h2>
-
-<label>
-  <input
-    type="checkbox"
-    checked={showOnBoard}
-    onChange={(e) => {
-      setShowOnBoard(e.target.checked);
-
-      if (!e.target.checked) {
-        setRecommendationReason("");
-      }
-    }}
-  />
-  {" "}내 선택을 같은 소속 현황판에 공개
-</label>
-
-{showOnBoard && (
-  <div style={{ marginTop: "10px" }}>
-    <textarea
-      placeholder="추천 이유를 입력하세요. 예: 가까워서, 가격이 좋아서, 메뉴가 무난해서"
-      value={recommendationReason}
-      onChange={(e) => setRecommendationReason(e.target.value)}
-      rows={3}
-      style={{ width: "300px" }}
-    />
-  </div>
-)} */}
-
-{pendingRestaurant && (
-  <div
-    style={{
-      border: "1px solid #ccc",
-      padding: "16px",
-      margin: "20px auto",
-      maxWidth: "400px"
-    }}
-  >
-    <h2>식당 선택 확인</h2>
-
-    <p>
-      <strong>{pendingRestaurant.name}</strong>을/를{" "}
-      <strong>{selectedDate}</strong> 날짜에 선택하시겠습니까?
-    </p>
-
-    {profile.role === "leader" && selectWithTeam && (
-      <p>
-        현재 <strong>팀원도 같이 적용</strong>이 체크되어 있어,
-        같은 팀원들의 선택도 함께 변경됩니다.
-      </p>
-    )}
-
-    <label>
-      <input
-        type="checkbox"
-        checked={showOnBoard}
-        onChange={(e) => {
-          setShowOnBoard(e.target.checked);
-
-          if (!e.target.checked) {
-            setRecommendationReason("");
-          }
-        }}
-      />
-      {" "}내 선택을 같은 소속 현황판에 공개
-    </label>
-
-    {showOnBoard && (
-      <div style={{ marginTop: "10px" }}>
-        <textarea
-          placeholder="추천 이유를 입력하세요. 예: 가까워서, 가격이 좋아서, 메뉴가 무난해서"
-          value={recommendationReason}
-          onChange={(e) => setRecommendationReason(e.target.value)}
-          rows={3}
-          style={{ width: "100%" }}
-        />
-      </div>
-    )}
-
-    <div style={{ marginTop: "12px" }}>
-      <button onClick={handleConfirmSelectRestaurant}>
-        확인
-      </button>
-
-      <button
-        onClick={handleCancelPendingRestaurant}
-        style={{ marginLeft: "8px" }}
-      >
-        취소
-      </button>
-    </div>
-  </div>
-)}
-
-<h2>지도</h2>
-<NaverMap
-  restaurants={restaurants}
-  choiceRanking={choiceStatus.ranking}
-  onMapCenterChange={setMapCenter}
-/>
-
-
-
-<h2>식당 목록</h2>
-
-<div style={{ marginBottom: "16px" }}>
-  <input
-    placeholder="식당 이름 또는 추천 메뉴 검색"
-    value={restaurantSearchKeyword}
-    onChange={(e) => setRestaurantSearchKeyword(e.target.value)}
-  />
-</div>
-
-{restaurants.length === 0 ? (
-  <p>등록된 식당이 없습니다.</p>
-) : filteredRestaurants.length === 0 ? (
-  <p>검색 결과가 없습니다.</p>
-) : (
-  <ul>
-    {filteredRestaurants.map((restaurant) => (
-      <li key={restaurant.id} style={{ marginBottom: "20px" }}>
-        {editingRestaurantId === restaurant.id ? (
-          <div>
-            <input
-              placeholder="식당 이름"
-              value={editRestaurantName}
-              onChange={(e) => setEditRestaurantName(e.target.value)}
-            />
-            <br />
-
-            <input
-              placeholder="추천 메뉴"
-              value={editRestaurantMenu}
-              onChange={(e) => setEditRestaurantMenu(e.target.value)}
-            />
-            <br />
-
-            <button onClick={handleUpdateRestaurant}>
-              저장
-            </button>
-
-            <button
-              onClick={handleCancelEditRestaurant}
-              style={{ marginLeft: "8px" }}
-            >
-              취소
-            </button>
+  function renderRightPanel() {
+  if (!currentUser || !profile) {
+    if (screen === "signup") {
+      return (
+        <div className="panel-content auth-panel">
+          <div className="brand">
+            <div className="brand-icon">🍽️</div>
+            <h1>이건 어때</h1>
           </div>
-        ) : (
-          <div>
-            <strong>{restaurant.name}</strong>
-            <br />
-            {restaurant.menu && restaurant.menu.trim() !== "" && (
-              <>
-                추천 메뉴: {restaurant.menu}
-                <br />
-              </>
-            )}
-            <br />
 
-            <button onClick={() => handleSelectRestaurant(restaurant)}>
-              선택
-            </button>
+          <h2>회원가입</h2>
+          <p className="sub-text">필요한 정보를 입력해 계정을 만들어보세요</p>
 
-            <button
-              onClick={() => handleStartEditRestaurant(restaurant)}
-              style={{ marginLeft: "8px" }}
-            >
-              수정
-            </button>
-          </div>
-        )}
-      </li>
-    ))}
-  </ul>
-)}
-
-          <button onClick={handleLogout}>로그아웃</button>
-        </div>
-      ) : (
-        <div>
-          <h2>로그인 / 회원가입</h2>
-
-          <div>
+          <div className="form-card">
             <input
-              placeholder="PB 번호"
+              placeholder="휴대전화 뒷번호 4자리"
               value={pbnum}
               onChange={(e) => setPbnum(e.target.value)}
             />
-          </div>
 
-          <div>
             <input
               placeholder="이름"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
-          </div>
 
-          <div>
             <input
               type="password"
               placeholder="비밀번호"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
+
+            <input
+              list="signup-organization-list"
+              placeholder="소속"
+              value={editAffiliation}
+              onChange={(e) => setEditAffiliation(e.target.value)}
+            />
+
+            <datalist id="signup-organization-list">
+              {editAffiliation.trim() !== "" &&
+                organizations
+                  .filter((org) =>
+                    org.name.toLowerCase().includes(editAffiliation.toLowerCase())
+                  )
+                  .map((org) => (
+                    <option key={org.id} value={org.name} />
+                  ))}
+            </datalist>
+
+            <div className="button-row">
+              <button className="primary-button" onClick={handleSignUp}>
+                회원가입
+              </button>
+              <button className="outline-button" onClick={() => setScreen("login")}>
+                취소
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="panel-content auth-panel">
+        <div className="brand">
+          <div className="brand-icon">🍽️</div>
+          <h1>이건 어때</h1>
+        </div>
+
+        <p className="sub-text">맛있는 발견, 좋은 선택</p>
+
+        <div className="form-card">
+        
+
+          <input
+            placeholder="이름"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+
+          <input
+            type="password"
+            placeholder="비밀번호"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+
+          <button className="primary-button full" onClick={handleLogin}>
+            로그인
+          </button>
+
+          <button className="outline-button full" onClick={() => setScreen("signup")}>
+            회원가입
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (screen === "profile") {
+    return (
+      <div className="panel-content">
+        <PanelHeader onBack={goToMain} />
+
+        <h2>내 정보 수정</h2>
+        <p className="sub-text">프로필 정보를 수정해보세요</p>
+
+        <div className="form-card">
+          <label>이름</label>
+          <input value={profile.name || ""} disabled />
+
+          <label>소속</label>
+          <input
+            list="organization-list"
+            value={editAffiliation}
+            onChange={(e) => {
+              setEditAffiliation(e.target.value);
+              setEditTeamName("");
+            }}
+          />
+
+          <datalist id="organization-list">
+            {editAffiliation.trim() !== "" &&
+              organizations
+                .filter((org) =>
+                  org.name.toLowerCase().includes(editAffiliation.toLowerCase())
+                )
+                .map((org) => (
+                  <option key={org.id} value={org.name} />
+                ))}
+          </datalist>
+
+          <label>팀명</label>
+          <select
+            value={editTeamName}
+            onChange={(e) => setEditTeamName(e.target.value)}
+            disabled={!selectedOrganization}
+          >
+            <option value="">팀 선택</option>
+            {teamOptions.map((team) => (
+              <option key={team} value={team}>
+                {team}
+              </option>
+            ))}
+          </select>
+
+          <label>역할</label>
+          <select value={editRole} onChange={(e) => setEditRole(e.target.value)}>
+            <option value="member">조원</option>
+            <option value="leader">조장</option>
+          </select>
+
+          <button className="primary-button full" onClick={handleUpdateProfile}>
+            저장
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (screen === "selectList") {
+    return (
+      <div className="panel-content">
+        <PanelHeader onBack={goToMain} />
+
+        <h2>식당 선택</h2>
+        <p className="sub-text">오늘 갈 식당을 골라보세요</p>
+
+        <input
+          className="search-input"
+          placeholder="식당 이름 또는 추천 메뉴 검색"
+          value={restaurantSearchKeyword}
+          onChange={(e) => setRestaurantSearchKeyword(e.target.value)}
+        />
+
+        <div className="restaurant-list">
+          {filteredRestaurants.length === 0 ? (
+            <p>검색 결과가 없습니다.</p>
+          ) : (
+            filteredRestaurants.map((restaurant) => {
+              const rankingItem = choiceStatus.ranking.find(
+                (item) => item.restaurantId === restaurant.id
+              );
+              const count = rankingItem ? rankingItem.count : 0;
+
+              return (
+                <button
+                  key={restaurant.id}
+                  className="restaurant-card"
+                  onClick={() => handleSelectRestaurant(restaurant)}
+                >
+                  <div>
+                    <strong>{restaurant.name}</strong>
+                    {restaurant.menu && <p>{restaurant.menu}</p>}
+                  </div>
+                  <span>{count}명</span>
+                </button>
+              );
+            })
+          )}
+        </div>
+
+        <div className="bottom-actions">
+          <button className="primary-button" onClick={goToMain}>
+            뒤로
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (screen === "selectDetail") {
+    return (
+      <div className="panel-content">
+        <PanelHeader onBack={goToSelectList} />
+
+        <h2>식당 선택</h2>
+        <p className="sub-text">선택할 식당 정보를 확인하고 추천 멘트를 남겨보세요</p>
+
+        {pendingRestaurant && (
+          <>
+            <div className="selected-restaurant-card">
+              <h3>{pendingRestaurant.name}</h3>
+              {pendingRestaurant.roadAddress && <p>{pendingRestaurant.roadAddress}</p>}
+
+              <label>추천 메뉴</label>
+              <input
+                placeholder="추천 메뉴를 입력하세요"
+                value={pendingRestaurant.menu || ""}
+                readOnly
+              />
+            </div>
+
+            {profile.role === "leader" && (
+              <label className="check-row">
+                <input
+                  type="checkbox"
+                  checked={selectWithTeam}
+                  onChange={(e) => setSelectWithTeam(e.target.checked)}
+                />
+                조원과 함께하기
+              </label>
+            )}
+
+            <label className="check-row">
+              <input
+                type="checkbox"
+                checked={showOnBoard}
+                onChange={(e) => {
+                  setShowOnBoard(e.target.checked);
+                  if (!e.target.checked) {
+                    setRecommendationReason("");
+                  }
+                }}
+              />
+              모두에게 추천하기
+            </label>
+
+            <label>추천 멘트</label>
+            <textarea
+              placeholder="추천 이유나 한마디를 입력하세요"
+              value={recommendationReason}
+              onChange={(e) => setRecommendationReason(e.target.value)}
+              maxLength={300}
+            />
+
+            <div className="button-row">
+              <button className="primary-button" onClick={handleConfirmSelectRestaurant}>
+                선택하기
+              </button>
+              <button className="outline-button" onClick={goToSelectList}>
+                취소
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  if (screen === "register") {
+    return (
+      <div className="panel-content">
+        <PanelHeader onBack={goToMain} />
+
+        <h2>식당 등록</h2>
+        <p className="sub-text">등록할 식당을 검색하고 설명을 남겨보세요</p>
+
+        <div className="search-row">
+          <input
+            placeholder="식당 이름을 검색하세요"
+            value={newRestaurantName}
+            onChange={(e) => {
+              setNewRestaurantName(e.target.value);
+              setSelectedPlace(null);
+              setPlaceSearchResults([]);
+            }}
+          />
+          <button onClick={handleSearchPlace} disabled={placeSearchLoading}>
+            {placeSearchLoading ? "검색 중" : "검색"}
+          </button>
+        </div>
+
+        <h3>검색 결과</h3>
+
+        <div className="restaurant-list">
+          {placeSearchResults.map((place, index) => (
+            <button
+              key={`${place.title}-${index}`}
+              className={`restaurant-card ${
+                selectedPlace === place ? "selected" : ""
+              }`}
+              onClick={() => {
+                setSelectedPlace(place);
+                setNewRestaurantName(place.title);
+              }}
+            >
+              <div>
+                <strong>{place.title}</strong>
+                {place.category && <p>{place.category}</p>}
+              </div>
+              <span>{selectedPlace === place ? "✓" : "○"}</span>
+            </button>
+          ))}
+        </div>
+
+        <label>설명</label>
+        <textarea
+          placeholder="식당에 대한 설명이나 추천 이유를 입력하세요"
+          value={newRestaurantMenu}
+          onChange={(e) => setNewRestaurantMenu(e.target.value)}
+          maxLength={300}
+        />
+
+        <div className="button-row">
+          <button className="primary-button" onClick={handleAddRestaurant}>
+            등록하기
+          </button>
+          <button className="outline-button" onClick={goToMain}>
+            취소
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (screen === "rankingDetail") {
+  const rankingRestaurant = restaurants.find(
+    (restaurant) => restaurant.id === selectedRanking?.restaurantId
+  );
+
+  return (
+    <div className="panel-content">
+      <PanelHeader onBack={goBackFromRankingDetail} />
+
+      <h2>식당 랭킹 상세</h2>
+
+      {!selectedRanking ? (
+        <p>선택된 식당 정보가 없습니다.</p>
+      ) : (
+        <>
+          <div className="ranking-detail-card">
+            <div className="ranking-detail-info">
+              <h3>{selectedRanking.restaurantName}</h3>
+
+              <p>
+                오늘 랭킹{" "}
+                <strong>{selectedRanking.rank || "-" }위</strong>
+                {" · "}
+                참여 인원{" "}
+                <strong>{selectedRanking.count}명</strong>
+              </p>
+
+              {rankingRestaurant?.menu && (
+                <p>
+                  <strong>추천 메뉴</strong>{" "}
+                  {rankingRestaurant.menu}
+                </p>
+              )}
+            </div>
           </div>
 
-          <button onClick={handleSignUp}>회원가입</button>
-          <button onClick={handleLogin}>로그인</button>
+          <h3 className="detail-section-title">이 식당을 고른 사람들</h3>
+
+          <div className="picked-user-list">
+            {selectedRanking.users && selectedRanking.users.length > 0 ? (
+              selectedRanking.users.map((user) => (
+                <div
+                  className="picked-user-row"
+                  key={user.userId}
+                >
+                  <div className="picked-user-avatar">
+                    {user.userName?.slice(0, 1) || "?"}
+                  </div>
+
+                  <strong>{user.userName}</strong>
+
+                  <span>
+                    {user.teamName || user.affiliation || "소속 미설정"}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <p>선택한 사람이 없습니다.</p>
+            )}
+          </div>
+
+          <button
+            className="primary-button full"
+            onClick={goBackFromRankingDetail}
+          >
+            돌아가기
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+  return (
+    <div className="panel-content">
+      <PanelHeader onProfile={goToProfile} />
+
+      <div className="welcome-card recommendation-card">
+        {activeRecommendation ? (
+          <>
+            <p className="recommendation-label">오늘의 제안</p>
+
+            <h2>{activeRecommendation.restaurantName}</h2>
+
+            <p>
+              <strong>{activeRecommendation.userName}</strong>님이 추천했어요.
+            </p>
+
+            {activeRecommendation.recommendationReason ? (
+              <p className="recommendation-text">
+                “{activeRecommendation.recommendationReason}”
+              </p>
+            ) : (
+              <p className="recommendation-text">
+                추천 멘트는 없지만, 오늘의 선택으로 올라왔어요.
+              </p>
+            )}
+
+            {publicRecommendations.length > 1 && (
+              <p className="recommendation-count">
+                {recommendationIndex + 1} / {publicRecommendations.length}
+              </p>
+            )}
+          </>
+        ) : (
+          <>
+            <p className="recommendation-label">오늘의 제안</p>
+            <h2>{profile.name}님,</h2>
+            <p>아직 모두에게 공개된 제안이 없습니다.</p>
+          </>
+        )}
+      </div>
+
+      <div className="ranking-card">
+        <div className="section-title">
+          <h3>오늘의 식당 랭킹</h3>
+          <span>참여 인원 기준</span>
+        </div>
+
+        {choiceStatus.ranking.length === 0 ? (
+          <p>아직 선택한 사람이 없습니다.</p>
+        ) : (
+          choiceStatus.ranking.slice(0, 5).map((item, index) => (
+          <button
+            className="rank-row rank-row-button"
+            key={item.restaurantId}
+            onClick={() =>
+              goToRankingDetail({
+                ...item,
+                rank: index + 1
+              })
+            }
+          >
+            <span className="rank-number">{index + 1}</span>
+            <strong>{item.restaurantName}</strong>
+            <span>{item.count}명</span>
+          </button>
+        ))
+        )}
+      </div>
+
+      <div className="button-row">
+        <button className="primary-button" onClick={goToSelectList}>
+          식당 선택
+        </button>
+        <button className="outline-button" onClick={goToRegister}>
+          식당 등록
+        </button>
+      </div>
+
+      {myChoice && (
+        <div className="my-choice-box">
+          {/* 오늘 내 선택: <strong>{myChoice.restaurantName}</strong>
+          <button onClick={handleCancelChoice}>선택 취소</button> */}
         </div>
       )}
 
-      <p>{message}</p>
+      <button className="text-button" onClick={handleLogout}>
+        로그아웃
+      </button>
     </div>
   );
+}
+
+function PanelHeader({ onBack, onProfile }) {
+  return (
+    <div className="panel-header">
+      <div className="mini-brand">
+        <span>🍽️</span>
+        <strong>이건 어때</strong>
+      </div>
+
+      {onBack && (
+        <button className="small-button" onClick={onBack}>
+          뒤로
+        </button>
+      )}
+
+      {onProfile && (
+        <button className="small-button" onClick={onProfile}>
+          내 정보
+        </button>
+      )}
+    </div>
+  );
+}
+
+
+  return (
+  <div className="app-layout">
+    <div className="map-panel">
+      <NaverMap
+        restaurants={restaurants}
+        choiceRanking={
+          currentUser && profile
+            ? choiceStatus.ranking
+            : publicMapStatus.ranking
+        }
+        onMapCenterChange={setMapCenter}
+      />
+    </div>
+
+    <aside className="side-panel">
+      {renderRightPanel()}
+
+      {/* {message && <p className="message-text">{message}</p>} */}
+    </aside>
+  </div>
+);
 }
 
 export default App;

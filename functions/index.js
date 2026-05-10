@@ -127,7 +127,9 @@ exports.searchNaverPlaces = onCall(
         };
       })
       .filter((item) => {
-        return !Number.isNaN(item.lat) && !Number.isNaN(item.lng);
+        item.category.includes("음식점") &&
+        !Number.isNaN(item.lat) &&
+        !Number.isNaN(item.lng)
       })
       .sort((a, b) => a.distanceKm - b.distanceKm)
       .slice(0, 5);

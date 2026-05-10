@@ -932,9 +932,9 @@ const activeRecommendation =
           ))}
         </div>
 
-        <label>설명</label>
+        <label>추천 메뉴</label>
         <textarea
-          placeholder="식당에 대한 설명이나 추천 이유를 입력하세요"
+          placeholder="추천메뉴가 있다면 적어주세요"
           value={newRestaurantMenu}
           onChange={(e) => setNewRestaurantMenu(e.target.value)}
           maxLength={300}

@@ -61,12 +61,18 @@ function getCurrentPosition() {
   });
 }
 
-function NaverMap({ restaurants, choiceRanking = [], onMapCenterChange }) {
+function NaverMap({
+  restaurants,
+  choiceRanking = [],
+  previewPlace,
+  onMapCenterChange
+}) {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
   const infoWindowRef = useRef(null);
   const infoWindowTimerRef = useRef(null);
+  const previewMarkerRef = useRef(null);
 
 
   const [mapReady, setMapReady] = useState(false);
@@ -82,12 +88,12 @@ function NaverMap({ restaurants, choiceRanking = [], onMapCenterChange }) {
   const center = mapRef.current.getCenter();
 
 
-if (onMapCenterChange) {
+
   onMapCenterChange({
     lat: center.lat(),
     lng: center.lng()
   });
-}
+
 }
 
   function closeInfoWindow() {
@@ -101,6 +107,42 @@ if (onMapCenterChange) {
       infoWindowTimerRef.current = null;
     }
   }
+
+  useEffect(() => {
+  if (!mapRef.current || !window.naver?.maps) {
+    return;
+  }
+
+  const naver = window.naver;
+  const map = mapRef.current;
+
+  if (previewMarkerRef.current) {
+    previewMarkerRef.current.setMap(null);
+    previewMarkerRef.current = null;
+  }
+
+  if (!previewPlace) {
+    return;
+  }
+
+  const lat = Number(previewPlace.lat);
+  const lng = Number(previewPlace.lng);
+
+  if (Number.isNaN(lat) || Number.isNaN(lng)) {
+    return;
+  }
+
+  const position = new naver.maps.LatLng(lat, lng);
+
+  previewMarkerRef.current = new naver.maps.Marker({
+    position,
+    map,
+    title: previewPlace.title || previewPlace.name || "선택한 장소"
+  });
+
+  map.setCenter(position);
+  map.setZoom(17);
+}, [previewPlace]);
 
   useEffect(() => {
     const clientId = import.meta.env.VITE_NAVER_MAP_CLIENT_ID;
@@ -137,17 +179,8 @@ if (onMapCenterChange) {
 
         sendMapCenterToApp();
 
-        naver.maps.Event.addListener(mapRef.current, "idle", () => {
-        const center = mapRef.current.getCenter();
-
-       
-
-        if (onMapCenterChange) {
-            onMapCenterChange({
-            lat: center.lat(),
-            lng: center.lng()
-            });
-        }
+       naver.maps.Event.addListener(mapRef.current, "idle", () => {
+          sendMapCenterToApp();
         });
 
 

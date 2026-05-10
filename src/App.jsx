@@ -19,8 +19,9 @@ import "./App.css";
 
 //시작할때 
 //npm run build
-//firebase init hosting
 //firebase deploy --only hosting
+//functions 업데이트할때
+//firebase deploy --only functions
 //서버 닫을때
 //firebase hosting:disable
 
@@ -77,6 +78,7 @@ function App() {
   const [placeSearchResults, setPlaceSearchResults] = useState([]);
   const [selectedPlace, setSelectedPlace] = useState(null);
   const [placeSearchLoading, setPlaceSearchLoading] = useState(false);
+  const [previewPlace, setPreviewPlace] = useState(null);
 
   const [mapCenter, setMapCenter] = useState(null);
   const [screen, setScreen] = useState("login");
@@ -87,6 +89,7 @@ function App() {
     setScreen("main");
     setPendingRestaurant(null);
     setSelectedPlace(null);
+    setPreviewPlace(null);
     setSelectedRanking(null);
     setPlaceSearchResults([]);
     setRestaurantSearchKeyword("");
@@ -97,6 +100,7 @@ function App() {
   function goToSelectList() {
     setScreen("selectList");
     setPendingRestaurant(null);
+    setPreviewPlace(null);
     setShowOnBoard(false);
     setRecommendationReason("");
   }
@@ -104,6 +108,7 @@ function App() {
   function goToRegister() {
     setScreen("register");
     setSelectedPlace(null);
+    setPreviewPlace(null);
     setPlaceSearchResults([]);
     setNewRestaurantName("");
     setNewRestaurantMenu("");
@@ -149,6 +154,7 @@ function goBackFromRankingDetail() {
 
 function handleSelectRestaurant(restaurant) {
   setPendingRestaurant(restaurant);
+  setPreviewPlace(restaurant);
   setShowOnBoard(false);
   setRecommendationReason("");
   setMessage("");
@@ -272,6 +278,7 @@ async function handleAddRestaurant() {
     await addRestaurant({
       name: selectedPlace.title,
       menu: newRestaurantMenu,
+      category: selectedPlace.category || "",
       address: selectedPlace.address,
       roadAddress: selectedPlace.roadAddress,
       lat: Number(selectedPlace.lat),
@@ -288,6 +295,7 @@ async function handleAddRestaurant() {
     setNewRestaurantMenu("");
     setPlaceSearchResults([]);
     setSelectedPlace(null);
+    setPreviewPlace(null);
 
     setMessage("식당이 추가되었습니다.");
     setScreen("main");
@@ -356,6 +364,7 @@ async function handleSearchPlace() {
     setMessage("");
     setPlaceSearchLoading(true);
     setSelectedPlace(null);
+    setPreviewPlace(null);
 
     if (!newRestaurantName.trim()) {
       setMessage("검색할 가게 이름을 입력해주세요.");
@@ -812,8 +821,16 @@ const activeRecommendation =
                 >
                   <div>
                     <strong>{restaurant.name}</strong>
-                    {restaurant.menu && <p>{restaurant.menu}</p>}
+
+                    {restaurant.category && (
+                      <p>카테고리: {restaurant.category}</p>
+                    )}
+
+                    {restaurant.menu && (
+                      <p>추천 메뉴: {restaurant.menu}</p>
+                    )}
                   </div>
+
                   <span>{count}명</span>
                 </button>
               );
@@ -933,13 +950,22 @@ const activeRecommendation =
               }`}
               onClick={() => {
                 setSelectedPlace(place);
+                setPreviewPlace(place);
                 setNewRestaurantName(place.title);
               }}
             >
               <div>
                 <strong>{place.title}</strong>
-                {place.category && <p>{place.category}</p>}
+
+                {place.category && (
+                  <p>카테고리: {place.category}</p>
+                )}
+
+                {(place.roadAddress || place.address) && (
+                  <p>위치: {place.roadAddress || place.address}</p>
+                )}
               </div>
+
               <span>{selectedPlace === place ? "✓" : "○"}</span>
             </button>
           ))}
@@ -1117,8 +1143,8 @@ const activeRecommendation =
 
       {myChoice && (
         <div className="my-choice-box">
-          {/* 오늘 내 선택: <strong>{myChoice.restaurantName}</strong>
-          <button onClick={handleCancelChoice}>선택 취소</button> */}
+           오늘 내 선택: <strong>{myChoice.restaurantName}</strong>
+          <button onClick={handleCancelChoice}>선택 취소</button> 
         </div>
       )}
 
@@ -1163,6 +1189,7 @@ function PanelHeader({ onBack, onProfile }) {
             ? choiceStatus.ranking
             : publicMapStatus.ranking
         }
+        previewPlace={previewPlace}
         onMapCenterChange={setMapCenter}
       />
     </div>

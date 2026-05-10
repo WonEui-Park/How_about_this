@@ -27,6 +27,7 @@ export async function getRestaurants() {
 export async function addRestaurant({
   name,
   menu,
+  category = "",
   address = "",
   roadAddress = "",
   lat = null,
@@ -60,6 +61,7 @@ export async function addRestaurant({
   await addDoc(restaurantsRef, {
     name: name.trim(),
     menu: menu.trim(),
+    category,
     address,
     roadAddress,
     lat,

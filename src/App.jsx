@@ -16,6 +16,19 @@ import { getTeamMembers } from "./teamService";
 import { searchNaverPlaces } from "./placeService";
 import "./App.css";
 
+
+//시작할때 
+//npm run build
+//firebase init hosting
+//firebase deploy --only hosting
+//서버 닫을때
+//firebase hosting:disable
+
+
+
+
+
+
 function App() {
   const [pbnum, setPbnum] = useState("");
   const [name, setName] = useState("");

@@ -46,7 +46,8 @@ exports.searchNaverPlaces = onCall(
     secrets: [NAVER_SEARCH_CLIENT_ID, NAVER_SEARCH_CLIENT_SECRET],
     cors: [
       "http://localhost:5173",
-      "http://127.0.0.1:5173"
+      "http://127.0.0.1:5173",
+      "https://how-about-this-aa161.web.app"
     ]
   },
   async (request) => {

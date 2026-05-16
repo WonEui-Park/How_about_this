@@ -64,7 +64,10 @@ function getCurrentPosition() {
 function NaverMap({
   restaurants,
   choiceRanking = [],
+  highlightedRestaurants = [],
+  onHighlightedRestaurantSelect,
   previewPlace,
+  onMapBoundsChange,
   onMapCenterChange
 }) {
   const mapContainerRef = useRef(null);
@@ -73,6 +76,7 @@ function NaverMap({
   const infoWindowRef = useRef(null);
   const infoWindowTimerRef = useRef(null);
   const previewMarkerRef = useRef(null);
+  const highlightedMarkersRef = useRef([]);
 
 
   const [mapReady, setMapReady] = useState(false);
@@ -95,6 +99,23 @@ function NaverMap({
   });
 
 }
+
+function sendMapBoundsToApp() {
+    if (!mapRef.current || !onMapBoundsChange) {
+      return;
+    }
+
+    const bounds = mapRef.current.getBounds();
+    const sw = bounds.getSW();
+    const ne = bounds.getNE();
+
+    onMapBoundsChange({
+      south: sw.lat(),
+      west: sw.lng(),
+      north: ne.lat(),
+      east: ne.lng()
+    });
+  }
 
   function closeInfoWindow() {
     if (infoWindowRef.current) {
@@ -228,9 +249,11 @@ function NaverMap({
         });
 
         sendMapCenterToApp();
+        sendMapBoundsToApp();
 
        naver.maps.Event.addListener(mapRef.current, "idle", () => {
           sendMapCenterToApp();
+          sendMapBoundsToApp();
         });
 
 
@@ -249,6 +272,104 @@ function NaverMap({
 
     initializeMap();
   }, [onMapCenterChange]);
+
+useEffect(() => {
+  if (!mapReady || !mapRef.current || !window.naver?.maps) {
+    return;
+  }
+
+  const naver = window.naver;
+  const map = mapRef.current;
+
+  highlightedMarkersRef.current.forEach((marker) => {
+    marker.setMap(null);
+  });
+  highlightedMarkersRef.current = [];
+
+  highlightedRestaurants.forEach((restaurant) => {
+    const lat = Number(restaurant.lat);
+    const lng = Number(restaurant.lng);
+
+    if (Number.isNaN(lat) || Number.isNaN(lng)) {
+      return;
+    }
+
+    const position = new naver.maps.LatLng(lat, lng);
+
+    const marker = new naver.maps.Marker({
+      position,
+      map,
+      title: restaurant.name,
+      icon: {
+        content: `
+          <div style="
+            width:18px;
+            height:18px;
+            border-radius:50%;
+            background:#e53935;
+            border:3px solid white;
+            box-shadow:0 2px 8px rgba(0,0,0,0.35);
+            cursor:pointer;
+          "></div>
+        `,
+        size: new naver.maps.Size(24, 24),
+        anchor: new naver.maps.Point(12, 12)
+      }
+    });
+
+    const infoWindowId = `highlight-info-${restaurant.id}`;
+
+    const infoWindow = new naver.maps.InfoWindow({
+      content: `
+        <div
+          id="${infoWindowId}"
+          style="
+            padding:10px 12px;
+            font-size:13px;
+            cursor:pointer;
+            min-width:140px;
+            line-height:1.5;
+          "
+        >
+          <strong>${restaurant.name}</strong>
+          <br />
+          <span style="color:#666;">눌러서 정보보기</span>
+        </div>
+      `
+    });
+
+    naver.maps.Event.addListener(marker, "click", () => {
+      closeInfoWindow();
+
+      infoWindow.open(map, marker);
+      infoWindowRef.current = infoWindow;
+
+      setTimeout(() => {
+        const element = document.getElementById(infoWindowId);
+
+        if (element) {
+          element.onclick = () => {
+            closeInfoWindow();
+
+            if (onHighlightedRestaurantSelect) {
+              onHighlightedRestaurantSelect(restaurant);
+            }
+          };
+        }
+      }, 0);
+
+      infoWindowTimerRef.current = setTimeout(() => {
+        closeInfoWindow();
+      }, 5000);
+    });
+
+    highlightedMarkersRef.current.push(marker);
+  });
+}, [
+  highlightedRestaurants,
+  mapReady,
+  onHighlightedRestaurantSelect
+]);
 
   useEffect(() => {
     if (!mapReady || !mapRef.current || !window.naver?.maps) {

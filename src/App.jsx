@@ -80,7 +80,13 @@ function App() {
   const [placeSearchLoading, setPlaceSearchLoading] = useState(false);
   const [previewPlace, setPreviewPlace] = useState(null);
 
+
+  
   const [mapCenter, setMapCenter] = useState(null);
+  const [mapBounds, setMapBounds] = useState(null);
+  const [showMapRestaurants, setShowMapRestaurants] = useState(false);
+  const [mapVisibleRestaurants, setMapVisibleRestaurants] = useState([]);
+
   const [screen, setScreen] = useState("login");
   const [recommendationIndex, setRecommendationIndex] = useState(0);
   const [selectedRanking, setSelectedRanking] = useState(null);
@@ -103,6 +109,8 @@ function App() {
     setRestaurantSearchKeyword("");
     setShowOnBoard(false);
     setRecommendationReason("");
+    setShowMapRestaurants(false);
+    setMapVisibleRestaurants([]);
   }
 
   function goToSelectList() {
@@ -646,6 +654,46 @@ const filteredRestaurants = restaurants
     return (a.name || "").localeCompare(b.name || "", "ko");
   });
 
+const selectListRestaurants = showMapRestaurants
+  ? mapVisibleRestaurants
+  : filteredRestaurants;
+
+ function isRestaurantInsideBounds(restaurant, bounds) {
+    if (!bounds) {
+      return false;
+    }
+
+    const lat = Number(restaurant.lat);
+    const lng = Number(restaurant.lng);
+
+    if (Number.isNaN(lat) || Number.isNaN(lng)) {
+      return false;
+    }
+
+    return (
+      lat >= bounds.south &&
+      lat <= bounds.north &&
+      lng >= bounds.west &&
+      lng <= bounds.east
+    );
+  } 
+
+function handleShowMapRestaurants() {
+  if (!mapBounds) {
+    setMessage("지도가 아직 준비되지 않았습니다. 잠시 후 다시 시도해주세요.");
+    return;
+  }
+
+  const visibleRestaurants = restaurants
+    .filter((restaurant) => isRestaurantInsideBounds(restaurant, mapBounds))
+    .sort((a, b) => {
+      return (a.name || "").localeCompare(b.name || "", "ko");
+    });
+
+  setMapVisibleRestaurants(visibleRestaurants);
+  setShowMapRestaurants(true);
+}
+
 const publicRecommendations = choiceStatus.recommendations || [];
 
 const activeRecommendation =
@@ -831,14 +879,27 @@ const activeRecommendation =
           className="search-input"
           placeholder="식당 이름 또는 추천 메뉴 검색"
           value={restaurantSearchKeyword}
-          onChange={(e) => setRestaurantSearchKeyword(e.target.value)}
+          onChange={(e) => {
+          setRestaurantSearchKeyword(e.target.value);
+          setShowMapRestaurants(false);
+          setMapVisibleRestaurants([]);
+        }}
         />
 
+        <button
+          className="outline-button full"
+          onClick={handleShowMapRestaurants}
+        >
+          현재 지도 안의 식당 보기
+        </button>
+
+
+
         <div className="restaurant-list">
-          {filteredRestaurants.length === 0 ? (
+          {selectListRestaurants.length === 0 ? (
             <p>검색 결과가 없습니다.</p>
           ) : (
-            filteredRestaurants.map((restaurant) => {
+            selectListRestaurants.map((restaurant) => {
               const rankingItem = choiceStatus.ranking.find(
                 (item) => item.restaurantId === restaurant.id
               );
@@ -1225,7 +1286,10 @@ function PanelHeader({ onBack, onProfile }) {
             : publicMapStatus.ranking
         }
         previewPlace={previewPlace}
+        highlightedRestaurants={mapVisibleRestaurants}
+        onHighlightedRestaurantSelect={handleSelectRestaurant}
         onMapCenterChange={setMapCenter}
+        onMapBoundsChange={setMapBounds}
       />
     </div>
 

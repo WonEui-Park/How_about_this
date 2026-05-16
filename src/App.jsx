@@ -1,5 +1,5 @@
 import NaverMap from "./components/NaverMap";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "./firebase";
 import { signUpUser, loginUser } from "./authService";
@@ -84,6 +84,14 @@ function App() {
   const [screen, setScreen] = useState("login");
   const [recommendationIndex, setRecommendationIndex] = useState(0);
   const [selectedRanking, setSelectedRanking] = useState(null);
+
+  const [signUpLoading, setSignIpLoading] = useState(false);
+  const [addRestaurantLoading, setAddRestaurantLoading] = useState(false);
+
+  const signUpLockRef = useRef(false);
+  const addRestaurantLockRef = useRef(false);
+
+  const BUTTON_COOLDOWN_MS = 1000;
 
   function goToMain() {
     setScreen("main");
@@ -255,55 +263,63 @@ function handleCancelPendingRestaurant() {
 }
 
 async function handleAddRestaurant() {
-  try {
-    setMessage("");
-
-    if (!selectedPlace) {
-      setMessage("검색 결과에서 등록할 장소를 선택해주세요.");
+    if (addRestaurantLockRef.current) {
       return;
     }
 
-    const addressForGeocode =
-      selectedPlace.roadAddress || selectedPlace.address;
+    addRestaurantLockRef.current = true;
+    setAddRestaurantLoading(true);
 
-    if (!addressForGeocode) {
-      setMessage("선택한 장소에 주소 정보가 없습니다.");
-      return;
+    try {
+      setMessage("");
+
+      if (!selectedPlace) {
+        setMessage("검색 결과에서 등록할 장소를 선택해주세요.");
+        return;
+      }
+
+      const addressForGeocode =
+        selectedPlace.roadAddress || selectedPlace.address;
+
+      if (!addressForGeocode) {
+        setMessage("선택한 장소에 주소 정보가 없습니다.");
+        return;
+      }
+
+      await addRestaurant({
+        name: selectedPlace.title,
+        menu: newRestaurantMenu,
+        category: selectedPlace.category || "",
+        address: selectedPlace.address,
+        roadAddress: selectedPlace.roadAddress,
+        lat: Number(selectedPlace.lat),
+        lng: Number(selectedPlace.lng),
+        mapProvider: "naver",
+        placeKey: `naver_${selectedPlace.title}_${addressForGeocode}`,
+        createdBy: profile.name
+      });
+
+      const restaurantList = await getRestaurants();
+      setRestaurants(restaurantList);
+
+      setNewRestaurantName("");
+      setNewRestaurantMenu("");
+      setPlaceSearchResults([]);
+      setSelectedPlace(null);
+      setPreviewPlace(null);
+
+      setMessage("식당이 추가되었습니다.");
+      setScreen("main");
+    } catch (error) {
+      console.error(error);
+      setMessage("식당 추가 실패: " + error.message);
+    } finally {
+      setTimeout(() => {
+        addRestaurantLockRef.current = false;
+        setAddRestaurantLoading(false);
+      }, BUTTON_COOLDOWN_MS);
     }
-
-    const addressForKey =
-      selectedPlace.roadAddress || selectedPlace.address || "";
-
-
-    await addRestaurant({
-      name: selectedPlace.title,
-      menu: newRestaurantMenu,
-      category: selectedPlace.category || "",
-      address: selectedPlace.address,
-      roadAddress: selectedPlace.roadAddress,
-      lat: Number(selectedPlace.lat),
-      lng: Number(selectedPlace.lng),
-      mapProvider: "naver",
-      placeKey: `naver_${selectedPlace.title}_${addressForGeocode}`,
-      createdBy: profile.name
-    });
-
-    const restaurantList = await getRestaurants();
-    setRestaurants(restaurantList);
-
-    setNewRestaurantName("");
-    setNewRestaurantMenu("");
-    setPlaceSearchResults([]);
-    setSelectedPlace(null);
-    setPreviewPlace(null);
-
-    setMessage("식당이 추가되었습니다.");
-    setScreen("main");
-  } catch (error) {
-    console.error(error);
-    setMessage("식당 추가 실패: " + error.message);
   }
-}
 
 async function handleCancelChoice() {
   try {
@@ -505,25 +521,36 @@ useEffect(() => {
   }, []);
 
   async function handleSignUp() {
-    try {
-      setMessage("");
+      if (signUpLockRef.current) {
+        return;
+      }
 
-      await signUpUser({
-        pbnum,
-        name,
-        password,
-        affiliation: editAffiliation
-      });
+      signUpLockRef.current = true;
+      setSignUpLoading(true);
 
+      try {
+        setMessage("");
 
-      setMessage("회원가입 성공. 로그인해주세요.");
-      setScreen("login");
-      setPassword("");
-    } catch (error) {
-      console.error(error);
-      setMessage("회원가입 실패: " + error.message);
+        await signUpUser({
+          pbnum,
+          name,
+          password,
+          affiliation: editAffiliation
+        });
+
+        setMessage("회원가입 성공. 로그인해주세요.");
+        setScreen("login");
+        setPassword("");
+      } catch (error) {
+        console.error(error);
+        setMessage("회원가입 실패: " + error.message);
+      } finally {
+        setTimeout(() => {
+          signUpLockRef.current = false;
+          setSignUpLoading(false);
+        }, BUTTON_COOLDOWN_MS);
+      }
     }
-  }
 
   async function handleLogin() {
     try {
@@ -678,8 +705,12 @@ const activeRecommendation =
             </datalist>
 
             <div className="button-row">
-              <button className="primary-button" onClick={handleSignUp}>
-                회원가입
+              <button
+                className="primary-button"
+                onClick={handleSignUp}
+                disabled={signUpLoading}
+              >
+                {signUpLoading ? "가입 중..." : "회원가입"}
               </button>
               <button className="outline-button" onClick={() => setScreen("login")}>
                 취소
@@ -980,8 +1011,12 @@ const activeRecommendation =
         />
 
         <div className="button-row">
-          <button className="primary-button" onClick={handleAddRestaurant}>
-            등록하기
+          <button
+            className="primary-button"
+            onClick={handleAddRestaurant}
+            disabled={addRestaurantLoading}
+          >
+            {addRestaurantLoading ? "등록 중..." : "등록하기"}
           </button>
           <button className="outline-button" onClick={goToMain}>
             취소

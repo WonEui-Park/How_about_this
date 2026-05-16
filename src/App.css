@@ -644,3 +644,8 @@ button {
   font-size: 14px;
   white-space: nowrap;
 }
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

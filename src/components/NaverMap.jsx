@@ -78,7 +78,7 @@ function NaverMap({
   const [mapReady, setMapReady] = useState(false);
   const [locationError, setLocationError] = useState("");
 
-//   const currentLocationMarkerRef = useRef(null);
+  const currentLocationMarkerRef = useRef(null);
 
   function sendMapCenterToApp() {
   if (!mapRef.current || !onMapCenterChange) {
@@ -106,6 +106,35 @@ function NaverMap({
       clearTimeout(infoWindowTimerRef.current);
       infoWindowTimerRef.current = null;
     }
+  }
+
+  function showCurrentLocationMarker(naver, map, position) {
+    if (currentLocationMarkerRef.current) {
+      currentLocationMarkerRef.current.setMap(null);
+      currentLocationMarkerRef.current = null;
+    }
+
+    currentLocationMarkerRef.current = new naver.maps.Marker({
+      position,
+      map,
+      title: "내 위치",
+      icon: {
+        content: `
+          <div style="
+            width:12px;
+            height:12px;
+            border-radius:50%;
+            background:#126ff4;
+            border:4px solid white;
+            box-shadow:
+              0 0 0 8px rgba(18,111,244,0.18),
+              0 2px 8px rgba(0,0,0,0.35);
+          "></div>
+        `,
+        size: new naver.maps.Size(34, 34),
+        anchor: new naver.maps.Point(17, 17)
+      }
+    });
   }
 
   useEffect(() => {
@@ -156,22 +185,43 @@ function NaverMap({
       try {
         const naver = await loadNaverMapScript(clientId);
 
-        const currentPosition = await getCurrentPosition();
 
-        const currentLatLng = new naver.maps.LatLng(
-          currentPosition.lat,
-          currentPosition.lng
-        );
+       const defaultPosition = {
+      lat: 37.5045,
+      lng: 127.0250
+    };
 
-        const mapOptions = {
-          center: currentLatLng,
-          zoom: 17
-        };
+    let startPosition = defaultPosition;
+    let hasCurrentLocation = false;
 
-        mapRef.current = new naver.maps.Map(
-          mapContainerRef.current,
-          mapOptions
-        );
+    try {
+      startPosition = await getCurrentPosition();
+      hasCurrentLocation = true;
+    } catch (error) {
+      console.warn(
+        "현재 위치를 가져오지 못해 기본 위치로 지도를 표시합니다.",
+        error
+      );
+    }
+
+    const startLatLng = new naver.maps.LatLng(
+      startPosition.lat,
+      startPosition.lng
+    );
+
+    const mapOptions = {
+      center: startLatLng,
+      zoom: 17
+    };
+
+    mapRef.current = new naver.maps.Map(
+      mapContainerRef.current,
+      mapOptions
+    );
+
+    if (hasCurrentLocation) {
+      showCurrentLocationMarker(naver, mapRef.current, startLatLng);
+    }
 
         naver.maps.Event.addListener(mapRef.current, "click", () => {
           closeInfoWindow();
@@ -192,10 +242,8 @@ function NaverMap({
 
         setMapReady(true);
       } catch (error) {
-        console.error("현재 위치 또는 네이버 지도 로딩 실패:", error);
-        setLocationError(
-          "현재 위치를 가져올 수 없습니다. 브라우저 위치 권한을 허용해주세요."
-        );
+        console.error("네이버 지도 로딩 실패:", error);
+        setLocationError("지도를 불러올 수 없습니다.");
       }
     }
 

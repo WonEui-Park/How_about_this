@@ -228,7 +228,13 @@ async function handleConfirmSelectRestaurant() {
       setPendingRestaurant(null);
       setShowOnBoard(false);
       setRecommendationReason("");
+      setPreviewPlace(null);
+
+      setShowMapRestaurants(false);
+      setMapVisibleRestaurants([]);
+
       setScreen("main");
+      //여기에 추가
 
       return;
     }
@@ -254,8 +260,13 @@ async function handleConfirmSelectRestaurant() {
     setMessage(`${savedChoice.date} 날짜에 ${savedChoice.restaurantName} 선택 완료`);
 
     setPendingRestaurant(null);
+    setPreviewPlace(null);
     setShowOnBoard(false);
     setRecommendationReason("");
+
+    setShowMapRestaurants(false);
+    setMapVisibleRestaurants([]);
+    
     setScreen("main");
 
   } catch (error) {

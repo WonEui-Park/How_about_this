@@ -158,6 +158,27 @@ function sendMapBoundsToApp() {
     });
   }
 
+  function moveToCurrentLocationMarker() {
+    if (!mapRef.current || !currentLocationMarkerRef.current) {
+      alert("현재 위치가 아직 설정되지 않았습니다.");
+      return;
+    }
+
+    const currentPosition = currentLocationMarkerRef.current.getPosition();
+
+    mapRef.current.setCenter(currentPosition);
+    mapRef.current.setZoom(17);
+
+    if (onMapCenterChange) {
+      onMapCenterChange({
+        lat: currentPosition.lat(),
+        lng: currentPosition.lng()
+      });
+    }
+
+    sendMapBoundsToApp();
+  }
+
   useEffect(() => {
   if (!mapRef.current || !window.naver?.maps) {
     return;
@@ -494,15 +515,45 @@ useEffect(() => {
 
   return (
     <div
-      ref={mapContainerRef}
       style={{
+        position: "relative",
         width: "100%",
         maxWidth: "700px",
         height: "400px",
         margin: "20px auto",
         border: "1px solid #ddd"
       }}
-    />
+    >
+      <div
+        ref={mapContainerRef}
+        style={{
+          width: "100%",
+          height: "100%"
+        }}
+      />
+
+      <button
+        type="button"
+        onClick={moveToCurrentLocationMarker}
+        title="내 위치로 이동"
+        style={{
+          position: "absolute",
+          right: "16px",
+          bottom: "16px",
+          zIndex: 10,
+          width: "44px",
+          height: "44px",
+          borderRadius: "50%",
+          border: "1px solid #d9e0ea",
+          background: "white",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.18)",
+          cursor: "pointer",
+          fontSize: "20px"
+        }}
+      >
+        ⦿
+      </button>
+    </div>
   );
 }
 

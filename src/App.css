@@ -1,3 +1,7 @@
+:root {
+  color-scheme: light;
+}
+
 .counter {
   font-size: 16px;
   padding: 5px 10px;
@@ -648,4 +652,102 @@ button {
 button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+
+input,
+select,
+textarea {
+  background: #ffffff;
+  color: #111827;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #9ca3af;
+}
+
+.primary-button {
+  color: #ffffff;
+}
+
+.outline-button,
+.small-button,
+.restaurant-card,
+.rank-row-button {
+  color: #111827;
+}
+
+html,
+body,
+#root {
+  background: #f8fbff;
+  color: #111827;
+}
+
+.app-layout,
+.side-panel,
+.panel-content,
+.form-card,
+.welcome-card,
+.ranking-card,
+.selected-restaurant-card {
+  color: #111827;
+}
+
+.brand h1,
+.mini-brand strong,
+.panel-content h1,
+.panel-content h2,
+.panel-content h3,
+.form-card label,
+.selected-restaurant-card label,
+.restaurant-card strong,
+.ranking-card h3,
+.welcome-card h2 {
+  color: #111827;
+}
+
+.sub-text,
+.restaurant-card p,
+.ranking-detail-info p,
+.picked-user-row span {
+  color: #7b8496;
+}
+
+.form-card,
+.welcome-card,
+.ranking-card,
+.selected-restaurant-card,
+.restaurant-card,
+.rank-row {
+  background: #ffffff;
+}
+
+input,
+select,
+textarea {
+  background: #ffffff;
+  color: #111827;
+  -webkit-text-fill-color: #111827;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #9ca3af;
+  -webkit-text-fill-color: #9ca3af;
+}
+
+.primary-button {
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+}
+
+.outline-button,
+.small-button,
+.restaurant-card,
+.rank-row-button,
+.my-choice-box,
+.message-text {
+  color: #111827;
 }

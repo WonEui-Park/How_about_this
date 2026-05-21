@@ -234,7 +234,7 @@ async function handleConfirmSelectRestaurant() {
       setMapVisibleRestaurants([]);
 
       setScreen("main");
-      //여기에 추가
+      
 
       return;
     }

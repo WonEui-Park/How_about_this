@@ -544,8 +544,9 @@ useEffect(() => {
           width: "44px",
           height: "44px",
           borderRadius: "50%",
-          border: "1px solid #d9e0ea",
-          background: "white",
+          border: "1px solid #d1d5db",
+          background: "#f3f4f6",
+          color: "#374151",
           boxShadow: "0 4px 12px rgba(0,0,0,0.18)",
           cursor: "pointer",
           fontSize: "20px"

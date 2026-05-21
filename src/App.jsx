@@ -91,7 +91,7 @@ function App() {
   const [recommendationIndex, setRecommendationIndex] = useState(0);
   const [selectedRanking, setSelectedRanking] = useState(null);
 
-  const [signUpLoading, setSignIpLoading] = useState(false);
+  const [signUpLoading, setSignUpLoading] = useState(false);
   const [addRestaurantLoading, setAddRestaurantLoading] = useState(false);
 
   const signUpLockRef = useRef(false);

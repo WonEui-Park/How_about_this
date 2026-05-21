@@ -111,6 +111,7 @@ function App() {
     setRecommendationReason("");
     setShowMapRestaurants(false);
     setMapVisibleRestaurants([]);
+    setSelectWithTeam(false);
   }
 
   function goToSelectList() {
@@ -119,6 +120,7 @@ function App() {
     setPreviewPlace(null);
     setShowOnBoard(false);
     setRecommendationReason("");
+    setSelectWithTeam(false);
   }
 
   function goToRegister() {
@@ -228,6 +230,7 @@ async function handleConfirmSelectRestaurant() {
       setPendingRestaurant(null);
       setShowOnBoard(false);
       setRecommendationReason("");
+      setSelectWithTeam(false)
       setPreviewPlace(null);
 
       setShowMapRestaurants(false);
@@ -689,20 +692,55 @@ const selectListRestaurants = showMapRestaurants
     );
   } 
 
+  function isRestaurantMatchedKeyword(restaurant, keyword) {
+    const trimmedKeyword = keyword.trim().toLowerCase();
+
+    if (!trimmedKeyword) {
+      return true;
+    }
+
+    const restaurantName = (restaurant.name || "").toLowerCase();
+    const restaurantMenu = (restaurant.menu || "").toLowerCase();
+    const restaurantCategory = (restaurant.category || "").toLowerCase();
+
+    return (
+      restaurantName.includes(trimmedKeyword) ||
+      restaurantMenu.includes(trimmedKeyword) ||
+      restaurantCategory.includes(trimmedKeyword)
+    );
+  }
+
 function handleShowMapRestaurants() {
   if (!mapBounds) {
     setMessage("지도가 아직 준비되지 않았습니다. 잠시 후 다시 시도해주세요.");
     return;
   }
 
+  const keyword = restaurantSearchKeyword;
+
   const visibleRestaurants = restaurants
-    .filter((restaurant) => isRestaurantInsideBounds(restaurant, mapBounds))
+    .filter((restaurant) => {
+      return (
+        isRestaurantInsideBounds(restaurant, mapBounds) &&
+        isRestaurantMatchedKeyword(restaurant, keyword)
+      );
+    })
     .sort((a, b) => {
       return (a.name || "").localeCompare(b.name || "", "ko");
     });
 
   setMapVisibleRestaurants(visibleRestaurants);
   setShowMapRestaurants(true);
+
+  if (visibleRestaurants.length === 0) {
+    setMessage(
+      keyword.trim()
+        ? "현재 지도 안에 검색어와 일치하는 식당이 없습니다."
+        : "현재 지도 안에 등록된 식당이 없습니다."
+    );
+  } else {
+    setMessage("");
+  }
 }
 
 const publicRecommendations = choiceStatus.recommendations || [];
@@ -901,7 +939,7 @@ const activeRecommendation =
           className="outline-button full"
           onClick={handleShowMapRestaurants}
         >
-          현재 지도 안의 식당 보기
+          현재 지도 안에서 검색
         </button>
 
 
